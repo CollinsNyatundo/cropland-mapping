@@ -209,7 +209,7 @@ st.markdown("""
 <div class="glass-container">
 <h3 class="gradient-text" style="text-align: center; margin-bottom: 1rem;">🚀 Explore the Suite</h3>
 <div class="hs-scroll">
-  <div class="hs-track auto-scroll" style="--scroll-duration: 26s;">
+  <div class="hs-track auto-scroll" style="--scroll-duration: 14s;">
     <!-- Sequence A -->
     <div class="glass-card hs-card">
       <h4><span class="material-symbols-outlined">analytics</span> Data Explorer</h4>
