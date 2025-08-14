@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 import folium
-from branca.element import Template, MacroElement
+from branca.element import Element
 from streamlit_folium import st_folium
 import geopandas as gpd
 
@@ -199,30 +199,25 @@ with map_col:
 
     folium.LayerControl(collapsed=True).add_to(m)
 
-    # Add legend for Cropland vs Non-cropland
+    # Add legend for Cropland vs Non-cropland (no MacroElement to avoid stray macro IDs)
     try:
-        legend_template = """
-        {% macro html(this, kwargs) %}
-        <div id='maplegend' class='maplegend' 
-             style='position: absolute; z-index:9999; border: 1px solid rgba(0,0,0,0.15); 
-                    background-color: rgba(255,255,255,0.92); border-radius: 8px; 
-                    padding: 10px 12px; font-size: 13px; right: 18px; bottom: 18px; 
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);'>
-          <div style='font-weight:600; margin-bottom:6px;'>Legend</div>
-          <div style='display:flex; align-items:center; margin-bottom:4px;'>
-            <span style='display:inline-block; width:12px; height:12px; background:#2a5298; border-radius:50%; margin-right:8px;'></span>
-            <span>Cropland</span>
+        legend_html = """
+        <div style="position: absolute; z-index: 9999; left: 14px; bottom: 14px; 
+                    background: rgba(17,17,17,0.88); color: #fff; border-radius: 8px; 
+                    padding: 10px 12px; font-size: 13px; line-height: 1.2; 
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.25); pointer-events: none;">
+          <div style="font-weight:700; margin-bottom:6px; letter-spacing: .01em;">Legend</div>
+          <div style="display:flex; align-items:center; margin-bottom:5px;">
+            <span style="display:inline-block; width:12px; height:12px; background:#2a5298; border-radius:50%; margin-right:8px; border:1px solid rgba(255,255,255,0.5);"></span>
+            <span style="color:#f7f7f7;">Cropland</span>
           </div>
-          <div style='display:flex; align-items:center;'>
-            <span style='display:inline-block; width:12px; height:12px; background:#999999; border-radius:50%; margin-right:8px;'></span>
-            <span>Non‑cropland</span>
+          <div style="display:flex; align-items:center;">
+            <span style="display:inline-block; width:12px; height:12px; background:#999999; border-radius:50%; margin-right:8px; border:1px solid rgba(255,255,255,0.5);"></span>
+            <span style="color:#f7f7f7;">Non‑cropland</span>
           </div>
         </div>
-        {% endmacro %}
         """
-        legend = MacroElement()
-        legend._template = Template(legend_template)
-        m.get_root().add_child(legend)
+        m.get_root().html.add_child(Element(legend_html))
     except Exception:
         pass
 
