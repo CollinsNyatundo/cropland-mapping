@@ -54,14 +54,13 @@ button_css = """
 inject_css_block(glassmorphism_css + animated_css + button_css)
 
 carousel_css = """
-.hs-scroll { overflow-x: hidden; position: relative; padding-bottom: 0.25rem; }
+.hs-scroll { overflow-x: auto; position: relative; padding-bottom: 0.25rem; }
 .hs-track { display: flex; gap: 16px; align-items: stretch; will-change: transform; }
 .hs-card { min-width: 260px; flex: 0 0 auto; }
-/* Autoscroll (pause on hover) */
+/* Autoscroll (no pause on hover to ensure all cards cycle even when hovered) */
 .auto-scroll { animation: scrollx var(--scroll-duration, 28s) linear infinite; }
-.hs-scroll:hover .auto-scroll { animation-play-state: paused; }
 @keyframes scrollx { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-/* Subtle scrollbar styling if ever shown */
+/* Subtle scrollbar styling */
 .hs-scroll::-webkit-scrollbar { height: 8px; }
 .hs-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 8px; }
 """
@@ -209,7 +208,7 @@ st.markdown("""
 <div class="glass-container">
 <h3 class="gradient-text" style="text-align: center; margin-bottom: 1rem;">🚀 Explore the Suite</h3>
 <div class="hs-scroll">
-  <div class="hs-track auto-scroll" style="--scroll-duration: 14s;">
+  <div class="hs-track auto-scroll" style="--scroll-duration: 16s;">
     <!-- Sequence A -->
     <div class="glass-card hs-card">
       <h4><span class="material-symbols-outlined">analytics</span> Data Explorer</h4>
