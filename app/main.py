@@ -58,7 +58,7 @@ carousel_css = """
 .hs-track { display: inline-flex; gap: 16px; align-items: stretch; width: max-content; will-change: transform; }
 .hs-card { min-width: 260px; flex: 0 0 auto; }
 /* Autoscroll */
-.auto-scroll { animation: scrollx var(--scroll-duration, 8s) linear infinite; }
+.auto-scroll { animation: scrollx var(--scroll-duration, 18s) linear infinite; }
 @keyframes scrollx { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 """
 inject_css_block(carousel_css)
@@ -205,7 +205,7 @@ st.markdown("""
 <div class="glass-container">
 <h3 class="gradient-text" style="text-align: center; margin-bottom: 1rem;">🚀 Explore the Suite</h3>
 <div class="hs-scroll">
-  <div class="hs-track auto-scroll" style="--scroll-duration: 10s;">
+  <div class="hs-track auto-scroll" style="--scroll-duration: 18s;">
     <!-- Sequence A -->
     <div class="glass-card hs-card">
       <h4><span class="material-symbols-outlined">analytics</span> Data Explorer</h4>
