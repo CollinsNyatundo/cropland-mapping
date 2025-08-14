@@ -216,20 +216,20 @@ st.markdown("""
       <p>Dive deep into your agricultural datasets with interactive visualizations and statistical insights.</p>
     </div>
     <div class="glass-card hs-card">
-      <h4><span class="material-symbols-outlined">monitoring</span> Model Performance</h4>
-      <p>Compare ML models with comprehensive metrics, charts, and performance analytics.</p>
-    </div>
-    <div class="glass-card hs-card">
-      <h4><span class="material-symbols-outlined">map</span> Interactive Maps</h4>
-      <p>Visualize cropland data on interactive maps with clustering and geospatial analysis.</p>
-    </div>
-    <div class="glass-card hs-card">
       <h4><span class="material-symbols-outlined">insights</span> Predictions</h4>
       <p>Make real-time predictions using trained models with confidence scoring.</p>
     </div>
     <div class="glass-card hs-card">
       <h4><span class="material-symbols-outlined">psychology</span> Explainability</h4>
       <p>Understand model decisions with SHAP, PDP/ICE, and feature attributions.</p>
+    </div>
+    <div class="glass-card hs-card">
+      <h4><span class="material-symbols-outlined">monitoring</span> Model Performance</h4>
+      <p>Compare ML models with comprehensive metrics, charts, and performance analytics.</p>
+    </div>
+    <div class="glass-card hs-card">
+      <h4><span class="material-symbols-outlined">map</span> Interactive Maps</h4>
+      <p>Visualize cropland data on interactive maps with clustering and geospatial analysis.</p>
     </div>
     <!-- Sequence B (duplicate for seamless loop) -->
     <div class="glass-card hs-card">
@@ -237,20 +237,20 @@ st.markdown("""
       <p>Dive deep into your agricultural datasets with interactive visualizations and statistical insights.</p>
     </div>
     <div class="glass-card hs-card">
-      <h4><span class="material-symbols-outlined">monitoring</span> Model Performance</h4>
-      <p>Compare ML models with comprehensive metrics, charts, and performance analytics.</p>
-    </div>
-    <div class="glass-card hs-card">
-      <h4><span class="material-symbols-outlined">map</span> Interactive Maps</h4>
-      <p>Visualize cropland data on interactive maps with clustering and geospatial analysis.</p>
-    </div>
-    <div class="glass-card hs-card">
       <h4><span class="material-symbols-outlined">insights</span> Predictions</h4>
       <p>Make real-time predictions using trained models with confidence scoring.</p>
     </div>
     <div class="glass-card hs-card">
       <h4><span class="material-symbols-outlined">psychology</span> Explainability</h4>
       <p>Understand model decisions with SHAP, PDP/ICE, and feature attributions.</p>
+    </div>
+    <div class="glass-card hs-card">
+      <h4><span class="material-symbols-outlined">monitoring</span> Model Performance</h4>
+      <p>Compare ML models with comprehensive metrics, charts, and performance analytics.</p>
+    </div>
+    <div class="glass-card hs-card">
+      <h4><span class="material-symbols-outlined">map</span> Interactive Maps</h4>
+      <p>Visualize cropland data on interactive maps with clustering and geospatial analysis.</p>
     </div>
   </div>
 </div>
