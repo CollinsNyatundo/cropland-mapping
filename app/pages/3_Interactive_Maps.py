@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import folium
+from branca.element import Template, MacroElement
 from streamlit_folium import st_folium
 import geopandas as gpd
 
@@ -197,6 +198,33 @@ with map_col:
             pass
 
     folium.LayerControl(collapsed=True).add_to(m)
+
+    # Add legend for Cropland vs Non-cropland
+    try:
+        legend_template = """
+        {% macro html(this, kwargs) %}
+        <div id='maplegend' class='maplegend' 
+             style='position: absolute; z-index:9999; border: 1px solid rgba(0,0,0,0.15); 
+                    background-color: rgba(255,255,255,0.92); border-radius: 8px; 
+                    padding: 10px 12px; font-size: 13px; right: 18px; bottom: 18px; 
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);'>
+          <div style='font-weight:600; margin-bottom:6px;'>Legend</div>
+          <div style='display:flex; align-items:center; margin-bottom:4px;'>
+            <span style='display:inline-block; width:12px; height:12px; background:#2a5298; border-radius:50%; margin-right:8px;'></span>
+            <span>Cropland</span>
+          </div>
+          <div style='display:flex; align-items:center;'>
+            <span style='display:inline-block; width:12px; height:12px; background:#999999; border-radius:50%; margin-right:8px;'></span>
+            <span>Non‑cropland</span>
+          </div>
+        </div>
+        {% endmacro %}
+        """
+        legend = MacroElement()
+        legend._template = Template(legend_template)
+        m.get_root().add_child(legend)
+    except Exception:
+        pass
 
     # Render responsively with a stable component key to minimize re-mounting
     map_data = st_folium(m, height=620, width=None, use_container_width=True, key="main_map")
