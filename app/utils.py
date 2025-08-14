@@ -238,10 +238,17 @@ def get_model_feature_schema(model: object) -> List[str]:
 
     Resolution order:
     1) If model is a dict with {'features': [...]} (e.g., champion bundle), use that
+    1b) If model is a dict with {'feature_columns': [...]} (e.g., model_bundle), use that
     2) scikit-learn: feature_names_in_
     3) CatBoost: feature_names_ or get_feature_names()
     4) Fallback: cache/final_features.json if present
     """
+    # Early: support explicit schema in bundles
+    if isinstance(model, dict):
+        feats_explicit = model.get('feature_columns') or model.get('features')
+        if isinstance(feats_explicit, list) and feats_explicit:
+            return list(map(str, feats_explicit))
+
     # Unwrap possible champion bundle
     underlying = model.get('model') if isinstance(model, dict) and 'model' in model else model
 
@@ -288,7 +295,7 @@ def get_model_feature_schema(model: object) -> List[str]:
 
     # 5) Champion-style bundle explicit list (last resort)
     if isinstance(model, dict):
-        feats = model.get('features')
+        feats = model.get('features') or model.get('feature_columns')
         if isinstance(feats, list) and feats:
             return list(map(str, feats))
 
@@ -305,8 +312,22 @@ def get_model_feature_schema(model: object) -> List[str]:
 
 def unwrap_model(model: object) -> object:
     """Return the underlying estimator when a champion bundle dict is provided."""
-    if isinstance(model, dict) and 'model' in model:
-        return model['model']
+    if isinstance(model, dict):
+        # Champion bundle style
+        if 'model' in model:
+            return model['model']
+        # Model bundle style with multiple final models
+        final_models = model.get('final_models')
+        if isinstance(final_models, dict) and final_models:
+            # Preference order: CatBoost -> LightGBM -> XGBoost -> RandomForest -> first available
+            preference = ['CatBoost', 'LightGBM', 'XGBoost', 'RandomForest']
+            for name in preference:
+                if name in final_models and final_models[name] is not None:
+                    return final_models[name]
+            try:
+                return next(iter(final_models.values()))
+            except Exception:
+                pass
     return model
 
 

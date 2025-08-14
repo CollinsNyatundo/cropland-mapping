@@ -90,41 +90,74 @@ with st.sidebar:
     sample_size = st.slider("Sample size for explanations", 100, 5000, 800, 50)
     top_k = st.slider("Top features (importance)", 5, 30, 12)
     st.markdown("---")
-    uploaded = st.file_uploader("Optional: Upload data CSV for explainability", type=["csv"]) 
+    # Data source selector
+    preproc_path = Path.cwd() / "preprocessed_features.csv"
+    artifacts_path = Path.cwd() / "artifacts" / "merged_data.parquet"
+    options = [
+        "Uploaded CSV",
+        "artifacts",
+        "Local: preprocessed_features.csv",
+    ]
+    # Default selection prioritizes uploaded CSV if present, else artifacts if present, else local preprocessed
+    default_idx = 0
+    uploaded = st.file_uploader("Upload CSV (if 'Uploaded CSV' is selected)", type=["csv"]) 
+    if uploaded is None:
+        if artifacts_path.exists():
+            default_idx = 1
+        elif preproc_path.exists():
+            default_idx = 2
+    source_choice = st.selectbox("Data source", options=options, index=default_idx)
 
 mdl = models[model_name]
 # Use model-specific schema when available
 model_schema = get_model_feature_schema(mdl) or get_feature_schema(models)
 
-# Load background data X
+"""Load background data X according to selection"""
 X_source: pd.DataFrame
 source_label = ""
-if uploaded is not None:
-    try:
-        df_in = pd.read_csv(uploaded)
+try:
+    if source_choice == "Uploaded CSV":
+        if uploaded is not None:
+            df_in = pd.read_csv(uploaded)
+            if model_schema:
+                defaults = load_feature_defaults(model_schema)
+                X_source = align_to_schema(df_in, model_schema, defaults)
+            else:
+                X_source = df_in.select_dtypes(include=[np.number]).fillna(0.0)
+            source_label = "(uploaded)"
+        else:
+            X_source = pd.DataFrame()
+    elif source_choice == "Local: preprocessed_features.csv" and preproc_path.exists():
+        df_in = pd.read_csv(preproc_path)
         if model_schema:
             defaults = load_feature_defaults(model_schema)
             X_source = align_to_schema(df_in, model_schema, defaults)
         else:
             X_source = df_in.select_dtypes(include=[np.number]).fillna(0.0)
-        source_label = "(uploaded)"
-    except Exception as e:
-        st.error(f"Failed to read uploaded CSV: {e}")
+        source_label = "(preprocessed_features.csv)"
+    elif source_choice == "artifacts" and artifacts_path.exists():
+        raw = load_parquet_if_exists(artifacts_path)
+        if model_schema:
+            defaults = load_feature_defaults(model_schema)
+            X_source = align_to_schema(raw, model_schema, defaults)
+        else:
+            X_source = raw.select_dtypes(include=[np.number]).fillna(0.0)
+        source_label = "artifacts"
+    else:
         X_source = pd.DataFrame()
-else:
-    # Fallback: try to assemble from any numeric columns in available data files
-    # Prefer light-weight synthetic sample if nothing available
+except Exception as e:
+    st.error(f"Failed to load selected data source: {e}")
     X_source = pd.DataFrame()
 
-# If no data yet, synthesize a small dataframe based on known features
+"""If no data yet, synthesize a small dataframe based on known features"""
 if X_source.empty:
     if model_schema:
-        # Try artifacts background first
-        raw = load_parquet_if_exists(Path.cwd() / "artifacts" / "merged_data.parquet")
+        # Try artifacts background first as automatic fallback
+        raw = load_parquet_if_exists(artifacts_path)
         if not raw.empty:
             defaults = load_feature_defaults(model_schema)
             X_source = align_to_schema(raw, model_schema, defaults)
-            source_label = "(artifacts/merged_data.parquet)"
+            source_label = "artifacts"
         else:
             rng = np.random.default_rng(42)
             X_source = pd.DataFrame(rng.normal(size=(max(sample_size, 500), len(model_schema))), columns=model_schema)
@@ -362,36 +395,45 @@ with tabs[1]:
 
 with tabs[2]:
     st.subheader("SHAP Dependence")
-    if shap_values is not None:
+    if shap_values is not None and not X.empty:
         feat = st.selectbox("Feature", options=list(X.columns), index=0, key="dep_feat")
         color_feat = st.selectbox("Color by", options=[None] + list(X.columns), index=0, key="dep_color")
         try:
             idx = list(X.columns).index(feat)
             y_vals = sample_shap_for_feature(shap_values, idx, n_samples=len(X), n_features=X.shape[1])
-            x_vals = X.iloc[:, idx].values
-            color_vals = X[color_feat] if color_feat else None
-            fig = px.scatter(
-                x=x_vals, y=y_vals, color=color_vals,
-                labels={"x": feat, "y": "SHAP value"}, opacity=0.7, color_continuous_scale='viridis',
-                title=f"Dependence: {feat} vs SHAP value"
-            )
-            fig.add_hline(y=0, line_dash="dash", opacity=0.5)
-            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown(
-                """
-                <div class="feature-guidance">
-                    <span class="material-symbols-outlined">explore</span>
-                    <strong>Interpretation</strong>
-                    <ul>
-                        <li><b>X‑axis</b>: feature value; <b>Y‑axis</b>: contribution to prediction (↑ increases, ↓ decreases).</li>
-                        <li><b>Color</b> a second feature to reveal potential <b>interactions</b> (e.g., effect depends on another variable).</li>
-                        <li>Patterns show <b>non‑linear</b> effects; a flat cloud ⇒ weak influence in this region.</li>
-                    </ul>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+            x_vals = pd.to_numeric(X.iloc[:, idx], errors="coerce").to_numpy()
+            valid = np.isfinite(x_vals) & np.isfinite(np.asarray(y_vals))
+            if valid.sum() < 2:
+                st.info("Insufficient valid points for dependence plot (feature may be constant or NaN). Try another feature or data source.")
+            else:
+                x_plot = x_vals[valid]
+                y_plot = np.asarray(y_vals)[valid]
+                color_vals = None
+                if color_feat:
+                    c_series = pd.to_numeric(X[color_feat], errors="coerce")
+                    color_vals = c_series[valid]
+                fig = px.scatter(
+                    x=x_plot, y=y_plot, color=color_vals,
+                    labels={"x": feat, "y": "SHAP value"}, opacity=0.7, color_continuous_scale='viridis',
+                    title=f"Dependence: {feat} vs SHAP value"
+                )
+                fig.add_hline(y=0, line_dash="dash", opacity=0.5)
+                fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+                st.markdown(
+                    """
+                    <div class="feature-guidance">
+                        <span class="material-symbols-outlined">explore</span>
+                        <strong>Interpretation</strong>
+                        <ul>
+                            <li><b>X‑axis</b>: feature value; <b>Y‑axis</b>: contribution to prediction (↑ increases, ↓ decreases).</li>
+                            <li><b>Color</b> a second feature to reveal potential <b>interactions</b> (e.g., effect depends on another variable).</li>
+                            <li>Patterns show <b>non‑linear</b> effects; a flat cloud ⇒ weak influence in this region.</li>
+                        </ul>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
         except Exception as e:
             st.warning(f"Could not render dependence plot: {e}")
     else:
@@ -399,49 +441,62 @@ with tabs[2]:
 
 with tabs[3]:
     st.subheader("Partial Dependence and ICE")
-    feat = st.selectbox("Feature for PDP/ICE", options=list(X.columns), index=0, key="pdp_feat")
-    grid_points = st.slider("Grid points", 10, 80, 30)
-    ice_curves = st.slider("ICE curves (samples)", 5, 100, 30)
+    if not X.empty:
+        feat = st.selectbox("Feature for PDP/ICE", options=list(X.columns), index=0, key="pdp_feat")
+        grid_points = st.slider("Grid points", 10, 80, 30)
+        ice_curves = st.slider("ICE curves (samples)", 5, 100, 30)
 
-    # Build grid over the selected feature
-    try:
-        x_series = X[feat]
-        vmin, vmax = np.nanpercentile(x_series, [1, 99])
-        grid = np.linspace(vmin, vmax, grid_points)
+        # Build grid over the selected feature
+        try:
+            x_series = pd.to_numeric(X[feat], errors="coerce")
+            x_series = x_series[np.isfinite(x_series)]
+            if x_series.size < 2:
+                st.info("Not enough variation in selected feature for PDP/ICE.")
+            else:
+                vmin, vmax = np.nanpercentile(x_series, [1, 99])
+                if not np.isfinite(vmin) or not np.isfinite(vmax) or vmax <= vmin:
+                    vmin = float(np.nanmin(x_series))
+                    vmax = float(np.nanmax(x_series))
+                if not np.isfinite(vmin) or not np.isfinite(vmax) or vmax <= vmin:
+                    st.info("Unable to form a valid grid for PDP/ICE (feature may be constant). Choose another feature.")
+                else:
+                    grid = np.linspace(vmin, vmax, grid_points)
 
-        # PDP: hold others at median
-        X_ref = X.median(numeric_only=True)
-        X_pdp = pd.DataFrame(np.tile(X_ref.values, (grid_points, 1)), columns=X.columns)
-        X_pdp[feat] = grid
-        y_pdp = predict_function(mdl, X_pdp)
+                    # PDP: hold others at median
+                    X_ref = X.median(numeric_only=True)
+                    X_pdp = pd.DataFrame(np.tile(X_ref.values, (grid_points, 1)), columns=X.columns)
+                    X_pdp[feat] = grid
+                    y_pdp = predict_function(mdl, X_pdp)
 
-        fig_pdp = go.Figure()
-        fig_pdp.add_trace(go.Scatter(x=grid, y=y_pdp, mode='lines', name='PDP', line=dict(width=3, color="#60A5FA")))
+                    fig_pdp = go.Figure()
+                    fig_pdp.add_trace(go.Scatter(x=grid, y=y_pdp, mode='lines', name='PDP', line=dict(width=3, color="#60A5FA")))
 
-        # ICE: sample a few rows and vary feature
-        ice_idx = X.sample(min(ice_curves, len(X)), random_state=42)
-        for i, (_, row) in enumerate(ice_idx.iterrows()):
-            X_ice = pd.DataFrame(np.tile(row.values, (grid_points, 1)), columns=X.columns)
-            X_ice[feat] = grid
-            y_ice = predict_function(mdl, X_ice)
-            fig_pdp.add_trace(go.Scatter(x=grid, y=y_ice, mode='lines', line=dict(width=1.2, color='rgba(255,255,255,0.35)'), showlegend=False))
+                    # ICE: sample a few rows and vary feature
+                    ice_idx = X.sample(min(ice_curves, len(X)), random_state=42)
+                    for i, (_, row) in enumerate(ice_idx.iterrows()):
+                        X_ice = pd.DataFrame(np.tile(row.values, (grid_points, 1)), columns=X.columns)
+                        X_ice[feat] = grid
+                        y_ice = predict_function(mdl, X_ice)
+                        fig_pdp.add_trace(go.Scatter(x=grid, y=y_ice, mode='lines', line=dict(width=1.2, color='rgba(255,255,255,0.35)'), showlegend=False))
 
-        fig_pdp.update_layout(title=f"PDP/ICE for {feat}", xaxis_title=feat, yaxis_title="Model output",
-                              paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_pdp, use_container_width=True)
-        st.markdown(
-            """
-            <div class="feature-guidance">
-                <span class="material-symbols-outlined">splitscreen</span>
-                <strong>PDP vs ICE</strong>
-                <ul>
-                    <li><b>PDP</b> (thick line): average effect of changing the feature while keeping others fixed at median.</li>
-                    <li><b>ICE</b> (thin lines): effect per individual sample; spread indicates <b>heterogeneous</b> behavior or interactions.</li>
-                    <li>Y‑axis is the model output (e.g., probability for class 1); look for thresholds and saturations.</li>
-                </ul>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    except Exception as e:
-        st.warning(f"Could not compute PDP/ICE: {e}")
+                    fig_pdp.update_layout(title=f"PDP/ICE for {feat}", xaxis_title=feat, yaxis_title="Model output",
+                                          paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                    st.plotly_chart(fig_pdp, use_container_width=True)
+                    st.markdown(
+                        """
+                        <div class="feature-guidance">
+                            <span class="material-symbols-outlined">splitscreen</span>
+                            <strong>PDP vs ICE</strong>
+                            <ul>
+                                <li><b>PDP</b> (thick line): average effect of changing the feature while keeping others fixed at median.</li>
+                                <li><b>ICE</b> (thin lines): effect per individual sample; spread indicates <b>heterogeneous</b> behavior or interactions.</li>
+                                <li>Y‑axis is the model output (e.g., probability for class 1); look for thresholds and saturations.</li>
+                            </ul>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+        except Exception as e:
+            st.warning(f"Could not compute PDP/ICE: {e}")
+    else:
+        st.info("Provide a dataset to compute PDP/ICE plots.")
