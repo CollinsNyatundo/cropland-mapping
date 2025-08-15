@@ -255,4 +255,4 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.info("Under development")
+st.info("WanTam")
