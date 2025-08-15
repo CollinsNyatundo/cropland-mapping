@@ -496,6 +496,20 @@ with tabs[3]:
                         """,
                         unsafe_allow_html=True,
                     )
+                    st.markdown(
+                        """
+                        <div class="feature-guidance">
+                            <span class="material-symbols-outlined">tips_and_updates</span>
+                            <strong>Key takeaways</strong>
+                            <ul>
+                                <li><b>PDP</b>: shows the <b>average/global</b> effect of a feature on predictions. It can <b>mask heterogeneous</b> behavior because it averages across samples.</li>
+                                <li><b>ICE</b>: shows the <b>per‑sample</b> effect as individual curves—great for spotting <b>subgroups</b> and <b>outliers</b>, but can get cluttered on large datasets.</li>
+                                <li><b>Tips</b>: Use both together (PDP overview + ICE detail). These methods are <b>model‑agnostic</b>. PDP can be extended to two features to explore <b>interactions</b>.</li>
+                            </ul>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
         except Exception as e:
             st.warning(f"Could not compute PDP/ICE: {e}")
     else:
